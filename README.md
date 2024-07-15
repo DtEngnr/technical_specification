@@ -305,4 +305,6 @@
 > systemctl restart airflow-webserver
 > systemctl status airflow-webserver
 
+## dag_tc
+Написанный мной на локальном компьютере DAG я поместил в папку /airflow/dags/ используя MobaXterm. Перезапустил scheduler, webserver, так как у моего сервера 1гб Оперативной памяти и сервер не видел мой DAG.
 
