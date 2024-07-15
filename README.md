@@ -308,3 +308,123 @@
 ## dag_tc
 Написанный мной на локальном компьютере DAG я поместил в папку /airflow/dags/ используя MobaXterm. Перезапустил scheduler, webserver, так как у моего сервера 1гб Оперативной памяти и сервер не видел мой DAG.
 
+![AirflowHomePage](https://github.com/DtEngnr/technical_specification/blob/main/AirflowHomePage.png)
+
+**Код DAGа:**
+
+> 		from airflow import DAG
+> 
+> 		from airflow.operators.python_operator import PythonOperator
+> 
+> 		from clickhouse_driver import Client
+> 
+> 		from datetime import datetime, timedelta
+> 
+> 		default_args = {
+> 
+> 			"owner": "danat",
+> 
+> 			"depends_on_past": False,
+> 
+> 			"start_date": datetime(2024, 1, 3),
+> 
+> 			"retries": 1,
+> 
+> 			"retry_delay": timedelta(minutes=5),
+> 
+> 			"max_active_runs": 1,  # Ограничение на одновременное выполнение одного DAG
+> 
+> 		}
+> 
+> 		dag = DAG(
+> 
+> 			"daily_sales_insert_clickhouse",
+> 
+> 			default_args=default_args,
+> 
+> 			description="DAG for daily insertion of 6 million rows into ClickHouse sales table",
+> 
+> 			schedule_interval="0 23 * * *",  # каждый день 23:00
+> 
+> 			catchup=True,  # catchup для организации бэкфилла
+> 
+> 			max_active_tasks=1,  # Ограничение на одновременное выполнение задач в рамках DAG
+> 
+> 		)
+> 
+> 		def execute_clickhouse_query(execution_date):
+> 
+> 			client = Client("localhost")  
+> 
+> 			query = f"""
+> 
+> 			INSERT INTO technical_specification.sales
+> 
+> 			SELECT 
+> 
+> 				'{execution_date}' as execution_date,
+> 
+> 				1000000 + rand() % 100 as article_id,
+> 
+> 				article_id % 2 as is_pb,
+> 
+> 				rand() % 1000 as quantity
+> 		
+> 				FROM numbers(6000000)
+> 
+> 			"""
+> 
+> 			client.execute(query)
+> 
+> 
+> 		insert_sales_task = PythonOperator(
+> 
+> 			task_id="insert_sales_task_clickhouse",
+> 
+> 			python_callable=execute_clickhouse_query,
+> 
+> 			op_kwargs={'execution_date': '{{ ds }}'},
+> 
+> 			provide_context=True,
+> 
+> 			dag=dag,
+> 
+> 		)
+>
+> 		insert_sales_task
+
+* для того чтобы делать запросы к CH я использовал **from clickhouse_driver import Client**
+ 
+* начальную дату указал как datetime(2024, 1, 3) и catchup=True чтобы организовать backfill
+ 
+* чтобы выполнение цепочки DAGов во время backfill'а не прерывалась из-за одного использовал "depends_on_past": False
+ 
+* поставил возможность авто-перезапуска DAGа через 5мин после неудачного выполнения
+ 
+* Поставил ежедневное выполнение в 11 часов schedule_interval="0 23 * * *"
+  
+* Поставил что одновременно может выполняться только один DAG и один Task чтобы не положить свой итак слабый сервер
+  
+* сделал функцию execute_clickhouse_query которая принимает execution_date чтобы вставить в таблицу логическое время выполнения таски
+
+* и обернул эту функцию в питоновский оператор
+
+* скачал clikhouse_driver черзе pip3 и в веб-интерфейсе Airflow созадл connection 'localhost' для подключения к CH
+
+![AirFlowCalendar](https://github.com/DtEngnr/technical_specification/blob/main/%D0%A1alendarAirflow.png)
+
+**В процессе выполнения пришлось изменить конфигурацию сервера до 3гб оперативной памяти, т.к нереально висло. И в конце концов успешное выполнение DAGa 193 раза.**
+## sales_mv after backfill
+![sales_mv_after](https://github.com/DtEngnr/technical_specification/blob/main/sales_mv_after_backfill.png)
+
+## temp_mv after backfill
+![temp_mv_after](https://github.com/DtEngnr/technical_specification/blob/main/temp_mv.png)
+
+[Сслылка на SQL-script](https://github.com/DtEngnr/technical_specification/blob/main/dag_tc.py)
+
+[Ссылка на Python-script](https://github.com/DtEngnr/technical_specification/blob/main/ClickHouseTC.sql)
+
+
+
+
+
