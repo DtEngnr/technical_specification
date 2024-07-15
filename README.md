@@ -177,9 +177,9 @@
 
 `temp_view` это материализованным представлением на основе `temp_mv`, обновляется автоматически при изменениях данных в `sales`. Обоснование его создания:
 
-    - Запрос агрегирует данные из таблицы `sales` по полю `date`, вычисляя количество строк (`rows_count`), количество уникальных `article_id` (`article_id_count`), суммы `quantity` для `is_pb = 1` (`pb_sales`) и `is_pb = 0` (`atd_sales`), а также общую сумму `quantity` (`s_sales`) для каждой даты.
+ Запрос агрегирует данные из таблицы `sales` по полю `date`, вычисляя количество строк (`rows_count`), количество уникальных `article_id` (`article_id_count`), суммы `quantity` для `is_pb = 1` (`pb_sales`) и `is_pb = 0` (`atd_sales`), а также общую сумму `quantity` (`s_sales`) для каждой даты.
 
-    Я решил использовать дополнительную таблицу и MergeTree(т.к при использовании одного матвью одна строка делится 6, но если аггрегировать данные правильные) для хранения предагрегированных данных. При использовании AggregatingMergeTree данные были меньше фактических в 6 раз, но 1 строка = 1 дата.
+Я решил использовать дополнительную таблицу и MergeTree(т.к при использовании одного матвью одна строка делится 6, но если аггрегировать данные правильные) для хранения предагрегированных данных. При использовании AggregatingMergeTree данные были меньше фактических в 6 раз, но 1 строка = 1 дата.
 
 
 ### Таблица `sales_mv`
@@ -199,8 +199,9 @@
 
 Эта таблица `sales_mv` используется для хранения окончательных агрегированных данных из `temp_mv`. Структура индетична таблице `temp_mv`
 
-### Материализованное представление `temp_view`
+### Материализованное представление `sales_view`
 
+> ```sql
 > CREATE MATERIALIZED VIEW sales_view TO sales_mv
 > AS SELECT
 >     date,
@@ -215,7 +216,7 @@
 
 `sales_view` эир материализованное представление на основе `sales_mv`, обновляется автоматически при изменениях данных в `temp_mv`. 
 
-    - Запрос агрегирует данные из таблицы `temp_mv` по полю `date`, вычисляя суммы агрегатов, фактически соединяет 6 строк на 1 дату в одну строку.
+Запрос агрегирует данные из таблицы `temp_mv` по полю `date`, вычисляя суммы агрегатов, фактически соединяет 6 строк на 1 дату в одну строку.
       
 
 ## Имитируем ежедневную заливку таблицы
@@ -420,9 +421,9 @@
 ## temp_mv after backfill
 ![temp_mv_after](https://github.com/DtEngnr/technical_specification/blob/main/temp_mv.png)
 
-[Сслылка на SQL-script](https://github.com/DtEngnr/technical_specification/blob/main/dag_tc.py)
+[Ссылка на Python-script](https://github.com/DtEngnr/technical_specification/blob/main/dag_tc.py)
 
-[Ссылка на Python-script](https://github.com/DtEngnr/technical_specification/blob/main/ClickHouseTC.sql)
+[Сслылка на SQL-script](https://github.com/DtEngnr/technical_specification/blob/main/ClickHouseTC.sql)
 
 
 
